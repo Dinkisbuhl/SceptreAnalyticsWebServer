@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Concept Search and Analysis Tool</title>
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+	
+	<script src="js/jquery-3.7.0.min.js"></script>
+	
+	<style>
+    li 
+    {
+      margin-bottom: 10px;
+    }
+    li.pointer 
+    {
+      cursor: pointer;
+    }
+    li:hover 
+    {
+      background-color: #ccc;
+    }
+    
+    .borderOutline
+    {
+    	border: 1px solid #CC99FF;
+    	border-width: 4px;
+	}
+	
+	.borderOutlineDarker
+    {
+    	border: 2px solid #993366;
+    	border-width: 2px;
+	}
+	
+	.popup {
+  		position: relative;
+  		display: inline-block;
+  		cursor: pointer;
+	}
+
+	.popup .popuptext {
+  		//visibility: hidden;
+  		//width: 160px;
+ 		//background-color: #555;
+  		//color: #fff;
+  		//text-align: center;
+  		//border-radius: 6px;
+  		//padding: 8px 0;
+  		//position: absolute;
+  		//z-index: 1;
+  		//bottom: 125%;
+  		//left: 50%;
+ 		//margin-left: -80px;
+ 		
+ 		visibility: hidden;
+ 		text-align: center;
+ 		background-color: #CC99FF;
+ 		border: 2px solid #993366;
+    	border-width: 2px;
+ 		position: fixed;
+    	top: 50%;
+    	left: 50%;
+    	transform: translate(-50%, -50%);
+    	width: 50%;
+	}
+
+	.popup .popuptext::after {
+  		content: "";
+  		position: absolute;
+  		top: 100%;
+  		left: 50%;
+  		margin-left: -5px;
+  		border-width: 5px;
+  		border-style: solid;
+  		border-color: #555 transparent transparent transparent;
+	}
+
+	.popup .show {
+  		visibility: visible;
+  		-webkit-animation: fadeIn 1s;
+  		animation: fadeIn 1s
+  		border: 2px solid #993366;
+    	border-width: 2px;
+	}
+
+	@-webkit-keyframes fadeIn {
+  		from {opacity: 0;}
+  		to {opacity: 1;}
+	}
+
+	@keyframes fadeIn {
+  		from {opacity: 0;}
+  		to {opacity:1 ;}
+	}
+    </style>
+</head>
+<body>
+	<p>Welcome To The Concept Search Tool</p>
+	
+	<form action="rest" id="form1">
+  		<label for="CommSel">Command Selection: </label>
+  		<select name="CommSel" id="CommSel"><br><br>
+  			<option value = "print_concepts_on_level">Print Concepts On Level</option>
+  			<option value = "print_translations">Print Translations For</option>
+  			<option value = "print_ancestors_names">Print Ancestors Names List For</option>
+  			<option value = "print_children">Print Children Names List For</option>
+  			<option value = "search_concepts">Search Concepts</option>
+  			<option value = "search_desc">Search Descriptions</option>
+  			<option value = "give_concept">Give Full Concept Details</option>
+  		</select><br><br>
+  		<label for="CommInp">Input for Command (Depends on Command Selected, Either a Word or a Number):</label>
+  		<input type="text" id="CommInp" name="CommInp"><br><br>
+ 		<button type="button" onclick="queryFunction();">Submit</button>
+  		<button type="button" onclick="clearField();">Clear Search</button>
+  		<button type="button" onclick="clearDetails();">Clear Concepts</button>
+  		<button type="button" onclick="clearBoth();">Clear Both</button>
+  		<button type="button" onclick ="shutDown();">Shut Down</button>
+	</form>
+
+	<div class="main" id="main" style="width: 100%;">
+		<div class="borderOutline" id="leftSide" style="width:30%;float:left;border-width: 4px;">
+			<div class="results" id="results" style="height:264px;overflow:auto;">
+			</div>
+			<div class="borderOutlineDarker" id="favoriteWrapper">
+				Favorites:
+				<div class="favorites" id="favorites" style="height:158px;overflow:auto;border-width: 4px;">
+				</div>
+			</div>
+			<div class="popup" id="export" style="height:30px;">
+				<button type="button" onclick="exportFavoritesSharedTranslations()">Toggle Export Favorites: Shared Translations</button>
+				<button type="button" onclick="exportFavoritesComprehensive()">Toggle Export Favorites: All Languages</button>
+				<div class="popuptext" id="favoritesPopup" style="border-width:2px;">Popup Text</div>
+			</div>
+		</div>
+
+		<div class="borderOutline" id="rightSide" style="margin-left: 30.5%;height: 466px;border-width: 4px;">
+				<div class="details" id="details" style="height: 446px;overflow: auto;">
+				</div>
+				<div class="popup" id="spacer">
+						<div class="popuptext" id="fullDetails" style="height: 500px;overflow: auto;">Popup Text</div>
+				</div>
+		</div>
+	</div>
+	
+	<script>
+	//TODO: Add a quit button to close the webpage and stop the server, add an X button to the lang export
+	//Second, Do the fasttext tutorials
+	
+	const resultsConcepts = new Map();
+	const favoritedConcepts = new Map();
+	
+	const delay = ms => new Promise(res => setTimeout(res, ms));
+	
+	function queryFunction()
+	{
+		document.getElementById("results").innerHTML = "";
+  		var commSel = document.getElementById("CommSel").value;
+  		var commInp = document.getElementById("CommInp").value;
+  		const urlString = "/rest?CommSel=" + commSel + "&CommInp=" + commInp;
+  		console.log(urlString);
+  		if (commSel === "search_concepts")
+  		{
+  			$.getJSON(urlString, searchConcepts);
+  		}
+  		else if (commSel === "search_desc")
+  		{
+  			$.getJSON(urlString, searchDescription, error);
+  		}
+  		else if (commSel == "give_concept")
+  		{
+  			$.getJSON(urlString, giveConcept);
+  			
+  			const urlString2 = "/rest?CommSel=print_translations&CommInp=" + commInp;
+  			$.getJSON(urlString2, printTranslations);
+  			
+  			const urlString3 = "/rest?CommSel=print_ancestors_names&CommInp=" + commInp;
+			$.getJSON(urlString3, printAncestorsNames);
+			
+			const urlString4 = "/rest?CommSel=print_children&CommInp=" + commInp;
+		    $.getJSON(urlString4, printChildren);
+  		}
+  		else if (commSel == "print_concepts_on_level")
+  		{
+  			$.getJSON(urlString, printConceptsOnLevel);
+  		}
+  		else if (commSel == "print_all_concept_names")
+  		{
+  			$.getJSON(urlString, printAllConceptNames);
+  		}
+  		else if (commSel == "print_translations")
+  		{
+  			$.getJSON(urlString, printTranslations);
+  		}
+  		else if (commSel == "print_ancestors_list")
+  		{
+  			$.getJSON(urlString, printAncestorsList);
+  		}
+  		else if (commSel == "print_ancestors_names")
+  		{
+  			$.getJSON(urlString, printAncestorsNames);
+  		}
+  		else if (commSel == "print_children")
+  		{
+  			$.getJSON(urlString, printChildren);
+  		}
+	}
+	
+	function shutDown()
+	{
+		$.getJSON("/rest/shutDown");
+		closePage();
+	}
+	
+	const closePage = async () => 
+	{
+  		await delay(1000);
+  		window.close();
+	};
+	
+	
+	function clearField()
+	{
+		document.getElementById("CommSel").value = "";
+		document.getElementById("CommInp").value = "";
+		document.getElementById("results").innerHTML = "";
+		//$('div#details').remove();
+		//$("#detailsTable tr").remove(); 
+		//$("#detailsTable td").remove(); 
+		//$('#details').empty();
+		//$('#details').html('');
+		//document.getElementById("details").innerHTML = "";
+	}
+	
+	function clearDetails()
+	{
+		document.getElementById("details").innerHTML = "";
+	}
+	
+	function clearBoth()
+	{
+		document.getElementById("CommSel").value = "";
+		document.getElementById("CommInp").value = "";
+		document.getElementById("results").innerHTML = "";
+		document.getElementById("details").innerHTML = "";
+		resultsConcepts.clear();
+	}
+	
+	function searchConcepts(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj) 
+		{
+			var iD = obj.ID;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + iD + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+			
+			resultsConcepts.set(obj.ID, obj);
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<table>" + list + "</table>");
+	}
+	
+	function searchDescription(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj) 
+		{
+			list += '<li>From: ' + obj.name + '<br>' + obj.desc + '</li><br>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function displayConceptDetailsOnClick(iD)
+	{
+		var obj = resultsConcepts.get(iD);
+		console.log(obj);
+		var list = '';
+		list += '<tr><td>Name: ' + obj.name + '<br>ID: ' + obj.ID + ', Level: ' + obj.level + '<br>Description: ' + obj.desc + '<br><button type="button" onclick="saveToFavorites(\'' + iD + '\');">Save To Favorites</button><button type="button" onclick="viewFullDetails(\'' + iD + '\');">View Full Details</button></td></tr><br>';
+		$( ".details" ).append('<table class="detailsTable" id="detailsTable">' + list + '</table>');
+	}
+	
+	function displayConceptDetailsOnClickFavorited(iD)
+	{
+		var obj = favoritedConcepts.get(iD);
+		if(resultsConcepts.has(iD) != true)
+		{
+			resultsConcepts.set(iD, obj);
+		}
+		console.log(obj);
+		var list = '';
+		list += '<tr><td>Name: ' + obj.name + '<br>ID: ' + obj.ID + ', Level: ' + obj.level + '<br>Description: ' + obj.desc + '<br><button type="button" onclick="saveToFavorites(\'' + iD + '\');">Save To Favorites</button><button type="button" onclick="viewFullDetails(\'' + iD + '\');">View Full Details</button></td></tr><br>';
+		$( ".details" ).append('<table class="detailsTable" id="detailsTable">' + list + '</table>');
+	}
+	
+	function giveConcept(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj)
+		{
+			list += '<br><br><li>Name: ' + obj.name + '<br>ID: ' + obj.ID + ', Level: ' + obj.level + '<br>Description: ' + obj.desc + '</li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function saveToFavorites(data)
+	{
+		console.log("saved to favorites");
+		var list = '';
+		var obj = resultsConcepts.get(data);
+		if(favoritedConcepts.has(data) != true)
+		{
+			favoritedConcepts.set(data, obj);
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClickFavorited(\'' + data + '\');">'
+			list += obj.name;
+			list +='</text><button type="button" onclick="removeFavorite(\'' + data + '\');">Un-favorite</button></li>';
+			$( ".favorites" ).append("<ul class='favorited' id='" + data + "'>" + list + "</ul>");
+		}
+	}
+	
+	function removeFavorite(data)
+	{
+		console.log(data);
+		var toRem = document.getElementById(data);
+		toRem.remove();
+		favoritedConcepts.delete(data);
+	}
+	
+	function exportFavoritesSharedTranslations()
+	{	    	
+		const langs = [];
+		const tPos = [];
+		const favoriteMapValues = favoritedConcepts.values();
+		var firstFav = favoriteMapValues.next().value;
+		const fFLangs = firstFav.languages;
+		
+		for(var i = 0; i < fFLangs.length; i++)
+		{
+			var currentLang = fFLangs[i];
+			const tempFavMapValues = favoritedConcepts.values();
+			
+			var allHave = true;
+			for(var j = 0; j < favoritedConcepts.size; j++)
+			{
+				var currentFav = tempFavMapValues.next().value;
+				const currFlangs = currentFav.languages;
+				var notFound = true;
+				
+				for (var k = 0; k < currFlangs.length; k++)
+				{
+					if(currFlangs[k] === currentLang)
+					{
+						notFound = false;
+					}
+				}
+				
+				if(notFound == true)
+				{
+					allHave = false;
+				}
+			}
+			if(allHave == true)
+			{
+				langs[langs.length] = currentLang;
+				tPos[tPos.length] = i;
+			}
+		}
+		
+		console.log(langs);
+		console.log(tPos);
+		
+		var popupText = "";
+		
+		for(var i = 0; i < langs.length; i++)
+		{
+			popupText += '<button type="button" onclick="displayLangFavorites(\'' + langs[i] + '\')">';
+			popupText += langs[i];
+			popupText += '</button>';
+		}
+		
+		popupText += '<br><br><button type="button" onclick="closePopupExport()">Close</button>';
+		var popup = document.getElementById("favoritesPopup");
+		popup.innerHTML = popupText;
+  		popup.classList.toggle("show");
+	}
+	
+	function exportFavoritesComprehensive()
+	{
+		const favoriteMapValues = favoritedConcepts.values();
+		
+		var cLargest = 0;
+		var largestFav;
+		
+		for(var i = 0; i < favoritedConcepts.size; i++)
+		{
+			var currFav = favoriteMapValues.next().value;
+			const cFlangs = currFav.languages;
+			if(cFlangs.length > cLargest)
+			{
+				largestFav = currFav;
+				cLargest = cFlangs.length;
+			}
+		}
+		
+		var langs = largestFav.languages;
+		
+		var popupText = "";
+		
+		for(var i = 0; i < langs.length; i++)
+		{
+			popupText += '<button type="button" onclick="displayLangFavorites(\'' + langs[i] + '\')">';
+			popupText += langs[i];
+			popupText += '</button>';
+		}
+		
+		popupText += '<br><br><button type="button" onclick="closePopupExport()">Close</button>';
+		var popup = document.getElementById("favoritesPopup");
+		popup.innerHTML = popupText;
+  		popup.classList.toggle("show");
+	}
+	
+	function closePopupExport()
+	{
+		var popup = document.getElementById("favoritesPopup");
+		popup.classList.toggle("show");
+	}
+	
+	function displayLangFavorites(lang)
+	{
+		console.log("displaying favorites in: " + lang);	
+		const favoriteMapValuesL = favoritedConcepts.values();
+		const favoriteMapValues = favoritedConcepts.values();
+		
+		var popupText = "";
+		var firstAddition = true;
+		
+		for(var i = 0; i < favoritedConcepts.size; i++)
+		{
+			var currFav = favoriteMapValuesL.next().value;
+			const cFLangs = currFav.languages;
+			var tPos = 0;
+			var foundLang = false;
+			
+			for(var j = 0; j < cFLangs.length; j++)
+			{
+				if(cFLangs[j] === lang)
+				{
+					tPos = j;
+					foundLang = true;
+				}
+			}
+			
+			if(foundLang == true)
+			{
+				const cFTrans = currFav.translations;
+				if(firstAddition == true)
+				{
+					popupText += cFTrans[tPos];
+					firstAddition = false;
+				}
+				else
+				{
+					popupText += ", " + cFTrans[tPos];
+				}
+			}
+			else
+			{
+				if(firstAddition == true)
+				{
+					popupText += "No Translation";
+					firstAddition = false;
+				}
+				else
+				{
+					popupText += ", No Translation";
+				}
+			}
+		}
+		
+		popupText += '<br><br><button type="button" onclick="closePopupExport()">Close</button>';
+		var popup = document.getElementById("favoritesPopup");
+		popup.innerHTML = popupText;
+	}
+	
+	function viewFullDetails(data)
+	{
+		var popupText = "";
+		
+		var obj = resultsConcepts.get(data);
+		console.log(obj);
+		
+		popupText += 'Name: ' + obj.name + ', ID: ' + obj.ID + ', Level: ' + obj.level + ', Description: ' + obj.desc;
+		
+		const lang = obj.languages;		
+		const tran = obj.translations;	
+  		popupText += '<br><br>Translations and Languages:';
+  		
+  		for(var i = 0; i < lang.length; i++)
+  		{
+  			popupText += '<br>' + lang[i] + ': ' + tran[i];
+  		}
+  		
+  		const urlString = "/rest?CommSel=print_ancestors_names&CommInp=" + obj.name;
+  		console.log(urlString);	
+  		
+  		$.getJSON(urlString, function(json)
+  		{
+  		    console.log(json);	
+  		        
+  		    popupText += '<br><br>Ancestors:<br>';
+  		    var firstA = true;
+  		    
+  			$.each(json, function(idx, obj2) 
+			{
+  				if(firstA == true)
+  				{
+  					popupText += obj2.name;
+  					firstA = false;
+  				}
+  				else
+  				{
+  					popupText += ', ' + obj2.name;
+  				}
+			});
+			
+			const urlString2 = "/rest?CommSel=print_children&CommInp=" + obj.name;
+  			console.log(urlString);	
+  			
+  			var firstC = true;
+  		
+  			$.getJSON(urlString2, function(json2)
+  			{
+  		    	console.log(json2);
+  		    	
+  		    	popupText += '<br><br>Children:<br>';
+  		   		var firstC = true;
+  		   		
+  		   		$.each(json2, function(idx, obj3) 
+				{
+					if(firstC == true)
+  					{
+  						popupText += obj3.name;
+  						firstC = false;
+  					}
+  					else
+  					{
+  						popupText += ', ' + obj3.name;
+  					}
+				});
+				
+				popupText += '<br><button type="button" onclick="toggleFullDetails()">Close</button>';
+  			
+  				var popup = document.getElementById("fullDetails");
+				popup.innerHTML = popupText;
+  				popup.classList.toggle("show");
+  		    });
+		});
+	}
+	
+	function toggleFullDetails()
+	{
+		var popup = document.getElementById("fullDetails");
+  		popup.classList.toggle("show");
+	}
+	
+	function printConceptsOnLevel(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Concepts On Level ' + commInp + ':<br><br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var iD = obj.ID;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + iD + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+			resultsConcepts.set(obj.ID, obj);
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printTranslations(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Translations for ' + commInp + ':<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			list += '<li>' + obj + '</li><br>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printTranslationsNoName(data)
+	{
+		console.log(data);
+		var list = '';
+		list += '<li>Translations:<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			list += '<li>' + obj + '</li><br>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printAncestorsNames(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Ancestors of ' + commInp + ':<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var iD = obj.ID;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + iD + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+			resultsConcepts.set(obj.ID, obj);
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printAncestorsNamesNoName(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Ancestors:<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printChildren(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Children of ' + commInp + ':<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var iD = obj.ID;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + iD + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+			resultsConcepts.set(obj.ID, obj);
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printChildrenNoName(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Children:<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function error()
+	{
+		console.log("there was an error");
+	}
+	</script>
+</body>
+</html>

@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Concept Search and Analysis Tool</title>
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+	
+	<script src="js/jquery-3.7.0.min.js"></script>
+	
+	<style>
+    li 
+    {
+      margin-bottom: 10px;
+    }
+    li.pointer 
+    {
+      cursor: pointer;
+    }
+    li:hover 
+    {
+      background-color: #ccc;
+    }
+    
+    .borderOutline
+    {
+    border: 1px solid #CC99FF;
+    border-width: 4px;
+	}
+	
+	.popup {
+  		position: relative;
+  		display: inline-block;
+  		cursor: pointer;
+	}
+
+	.popup .popuptext {
+  		//visibility: hidden;
+  		//width: 160px;
+ 		//background-color: #555;
+  		//color: #fff;
+  		//text-align: center;
+  		//border-radius: 6px;
+  		//padding: 8px 0;
+  		//position: absolute;
+  		//z-index: 1;
+  		//bottom: 125%;
+  		//left: 50%;
+ 		//margin-left: -80px;
+ 		
+ 		visibility: hidden;
+ 		text-align: center;
+ 		background-color: #CC99FF;
+ 		border-radius: 6px;
+ 		position: fixed;
+    	top: 50%;
+    	left: 50%;
+    	transform: translate(-50%, -50%);
+    	width: 50%;
+	}
+
+	.popup .popuptext::after {
+  		content: "";
+  		position: absolute;
+  		top: 100%;
+  		left: 50%;
+  		margin-left: -5px;
+  		border-width: 5px;
+  		border-style: solid;
+  		border-color: #555 transparent transparent transparent;
+	}
+
+	.popup .show {
+  		visibility: visible;
+  		-webkit-animation: fadeIn 1s;
+  		animation: fadeIn 1s
+	}
+
+	@-webkit-keyframes fadeIn {
+  		from {opacity: 0;}
+  		to {opacity: 1;}
+	}
+
+	@keyframes fadeIn {
+  		from {opacity: 0;}
+  		to {opacity:1 ;}
+	}
+    </style>
+</head>
+<body>
+	<p>Welcome To The Concept Search Tool</p>
+	
+	<form action="rest" id="form1">
+  		<label for="CommSel">Command Selection: </label>
+  		<select name="CommSel" id="CommSel"><br><br>
+  			<option value = "print_concepts_on_level">Print Concepts On Level</option>
+  			<option value = "print_translations">Print Translations For</option>
+  			<option value = "print_ancestors_names">Print Ancestors Names List For</option>
+  			<option value = "print_children">Print Children Names List For</option>
+  			<option value = "search_concepts">Search Concepts</option>
+  			<option value = "search_desc">Search Descriptions</option>
+  			<option value = "give_concept">Give Full Concept Details</option>
+  		</select><br><br>
+  		<label for="CommInp">Input for Command (Depends on Command Selected, Either a Word or a Number):</label>
+  		<input type="text" id="CommInp" name="CommInp"><br><br>
+ 		<button type="button" onclick="queryFunction();">Submit</button>
+  		<button type="button" onclick="clearField();">Clear Search</button>
+  		<button type="button" onclick="clearDetails();">Clear Concepts</button>
+	</form>
+
+	<div class="main" id="main" style="width: 100%;">
+		<div class="borderOutline" id="leftSide" style="width:30%;float:left;border-width: 4px;">
+			<div class="results" id="results" style="height:268px;overflow:auto;">
+			</div>
+			<div class="borderOutline" id="favoriteWrapper">
+				Favorites:
+				<div class="favorites" id="favorites" style="height:162px;overflow:auto;border-width: 4px;">
+				</div>
+			</div>
+			<div class="popup" id="export" style="height:30px;">
+				<button type="button" onclick="exportFavorites()">Toggle Export Favorites</button>
+				<div class="popuptext" id="myPopup">Popup Text</div>
+			</div>
+		</div>
+
+		<div class="borderOutline" id="rightSide" style="margin-left: 30.5%;height: 466px;border-width: 4px;">
+				<div class="details" id="details" style="height: 462px;overflow: auto;">
+					<div class="popup" id="spacer">
+						<div class="popuptext" id="fullDetails" style="height: 500px;overflow: auto;">Popup Text</div>
+					</div>
+				</div>
+		</div>
+	</div>
+	
+	<script>
+	//TODO: Turn everything into map calls, use global maps. Also, make sure special characters work.
+	//Bonus: Add a view more button
+	function queryFunction()
+	{
+	//TODO: Make export a pop up window, available in all languages, properly formatted
+	//Second, make view full details a pop up window as well. These pop ups are a kind of div.
+	//Third, add a view more button
+		document.getElementById("results").innerHTML = "";
+  		var commSel = document.getElementById("CommSel").value;
+  		var commInp = document.getElementById("CommInp").value;
+  		const urlString = "/rest?CommSel=" + commSel + "&CommInp=" + commInp;
+  		console.log(urlString);
+  		if (commSel === "search_concepts")
+  		{
+  			$.getJSON(urlString, searchConcepts);
+  		}
+  		else if (commSel === "search_desc")
+  		{
+  			$.getJSON(urlString, searchDescription, error);
+  		}
+  		else if (commSel == "give_concept")
+  		{
+  			$.getJSON(urlString, giveConcept);
+  			
+  			const urlString2 = "/rest?CommSel=print_translations&CommInp=" + commInp;
+  			$.getJSON(urlString2, printTranslations);
+  			
+  			const urlString3 = "/rest?CommSel=print_ancestors_names&CommInp=" + commInp;
+			$.getJSON(urlString3, printAncestorsNames);
+			
+			const urlString4 = "/rest?CommSel=print_children&CommInp=" + commInp;
+		    $.getJSON(urlString4, printChildren);
+  		}
+  		else if (commSel == "print_concepts_on_level")
+  		{
+  			$.getJSON(urlString, printConceptsOnLevel);
+  		}
+  		else if (commSel == "print_all_concept_names")
+  		{
+  			$.getJSON(urlString, printAllConceptNames);
+  		}
+  		else if (commSel == "print_translations")
+  		{
+  			$.getJSON(urlString, printTranslations);
+  		}
+  		else if (commSel == "print_ancestors_list")
+  		{
+  			$.getJSON(urlString, printAncestorsList);
+  		}
+  		else if (commSel == "print_ancestors_names")
+  		{
+  			$.getJSON(urlString, printAncestorsNames);
+  		}
+  		else if (commSel == "print_children")
+  		{
+  			$.getJSON(urlString, printChildren);
+  		}
+	}
+	
+	function clearField()
+	{
+		document.getElementById("CommSel").value = "";
+		document.getElementById("CommInp").value = "";
+		document.getElementById("results").innerHTML = "";
+		//$('div#details').remove();
+		//$("#detailsTable tr").remove(); 
+		//$("#detailsTable td").remove(); 
+		//$('#details').empty();
+		//$('#details').html('');
+		//document.getElementById("details").innerHTML = "";
+	}
+	
+	function clearDetails()
+	{
+		document.getElementById("details").innerHTML = "";
+	}
+	
+	function searchConcepts(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+			//list += '<tr class="pointer"><td><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			//list += obj.name;
+			//list += '</text></td></tr>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<table>" + list + "</table>");
+	}
+	
+	function searchDescription(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj) 
+		{
+			list += '<li>From: ' + obj.name + '<br>' + obj.desc + '</li><br>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function displayConceptDetailsOnClick(objName)
+	{
+		const urlString2 = "/rest?CommSel=give_concept&CommInp=" + objName;
+		console.log(urlString2);
+		$.getJSON(urlString2, giveConceptOnClick);
+	}
+	
+	function giveConcept(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj)
+		{
+			list += '<br><br><li>Name: ' + obj.name + '<br>ID: ' + obj.ID + ', Level: ' + obj.level + '<br>Description: ' + obj.desc + '</li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function giveConceptOnClick(data)
+	{
+		console.log(data);
+		var list = '';
+		$.each(data, function(idx, obj)
+		{
+			var name = obj.name;
+			list += '<tr><td>Name: ' + obj.name + '<br>ID: ' + obj.ID + ', Level: ' + obj.level + '<br>Description: ' + obj.desc + '<br><button type="button" onclick="saveToFavorites(\'' + name + '\');">Save To Favorites</button><button type="button" onclick="viewFullDetails(\'' + name + '\');">View Full Details</button></td></tr><br>';
+		});
+		$( ".details" ).append('<table class="detailsTable" id="detailsTable">' + list + '</table>');
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function saveToFavorites(data)
+	{
+		console.log("saved to favorites");
+		var list = '';
+		list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + data + '\');">'
+		list += data;
+		list +='</text><button type="button" onclick="removeFavorite(\'' + data + '\');">Un-favorite</button></li>';
+		$( ".favorites" ).append("<ul class='favorited' id='" + data + "'>" + list + "</ul>");
+	}
+	
+	function removeFavorite(data)
+	{
+		console.log(data);
+		var toRem = document.getElementById(data);
+		toRem.remove();
+	}
+	
+	function exportFavorites()
+	{	    
+		var list = '';
+		const allULs = document.getElementsByClassName("favorited");
+		const favList = [];
+		var firstItem = true;
+		for(var i = 0; i < allULs.length; i++)
+		{
+			var lis = allULs[i].getElementsByTagName("text");
+			favList[i] = (lis[0].textContent || lis[0].innerText);
+			if(firstItem==true)
+			{
+				list += (lis[0].textContent || lis[0].innerText);
+				firstItem = false;
+			}
+			else
+			{
+				list += ", " + (lis[0].textContent || lis[0].innerText);
+			}
+		}
+		
+		const langInFirst = [];
+		const urlString = "/rest?CommSel=print_translations&CommInp=" + favList[0];
+  		$.getJSON(urlString, function(json)
+  		{
+  		    console.log(json);
+  		    var i = 0;
+  			$.each(json, function(idx, obj) 
+			{
+				console.log(obj);
+				const spliced = obj.substring(obj.indexOf(" ")+1, obj.indexOf(","));
+				langInFirst[i] = spliced;
+				i += 1;
+				console.log(spliced);
+			});
+			console.log(langInFirst);
+			
+			const approvedLangs = [];
+			for(var j = 0; j < langInFirst.length; j++)
+			{
+				const tempLang = langInFirst[j];
+				var allRepresented = true;
+				for(var k = 1; k < favList.length; k++)
+				{
+					const urlStringTemp = "/rest?CommSel=print_translations&CommInp=" + favList[k];
+					$.ajax({
+						async: false,
+    					url: urlStringTemp,
+    					success: function() {
+        					var foundMatch = false;
+							$.each(jsonTemp, function(idx, obj) 
+							{
+								const splicedTemp = obj.substring(obj.indexOf(" ")+1, obj.indexOf(","));
+								if(splicedTemp===tempLang)
+								{
+									foundMatch = true;
+								}
+							});
+							if(foundMatch == false)
+							{
+								allRepresented = false;
+							}
+    					}
+					});
+				}
+				if(allRepresented == true)
+				{
+					approvedLangs[approvedLangs.length] = tempLang;
+				}
+			}
+			
+			list = '';
+			var firstAL = true;
+			for(var j = 0; j < approvedLangs.length; j++)
+			{
+				var currLang = approvedLangs[j];
+				list += '<button type="button" onclick="displayLangFavorites(\'' + currLang + '\');">\'' + currLang + '\'</button>'
+			}
+			
+			var popup = document.getElementById("myPopup");
+			popup.innerHTML = list;
+  			popup.classList.toggle("show");
+  		});	
+	}
+	
+	function displayLangFavorites(lang)
+	{
+		
+	}
+	
+	function viewFullDetails(data)
+	{
+		var popupText = "";
+  			
+  		const urlString = "/rest?CommSel=give_concept&CommInp=" + data;
+  		console.log(urlString);
+  		
+  		$.getJSON(urlString, function(json)
+  		{
+  			$.each(json, function(idx, obj)
+			{
+				console.log(obj);
+  				popupText += 'Name: ' + obj.name + ', ID: ' + obj.ID + ', Level: ' + obj.level + ', Description: ' + obj.desc;
+  			});
+  			
+  			const urlString2 = "/rest?CommSel=print_translations&CommInp=" + data;
+  			
+  		    $.getJSON(urlString2, function(json2)
+  			{
+  				popupText += '<br><br>Translations and Languages:<br>';
+  				var firstLang = true;
+  				$.each(json2, function(idx, obj)
+				{
+					//console.log(obj);
+					if (firstLang==true)
+					{
+						popupText += obj;
+						firstLang = false;
+					}
+					else
+					{
+						popupText += ",<br>" + obj;
+					}
+				});
+				
+				const urlString3 = "/rest?CommSel=print_ancestors_names&CommInp=" + data;
+				
+				$.getJSON(urlString3, function(json3)
+				{
+					popupText += '<br><br>Ancestors:<br>';
+					var firstAnc = true;
+					$.each(json3, function(idx, obj)
+					{
+						if (firstAnc == true)
+						{
+							popupText += obj.name;
+							firstAnc = false;
+						}
+						else
+						{
+							popupText += ", " + obj.name;
+						}
+					});
+					
+					const urlString4 = "/rest?CommSel=print_children&CommInp=" + data;
+					
+					$.getJSON(urlString4, function(json4)
+					{
+						popupText += '<br><br>Children:<br>';
+						var firstChil = true;
+						$.each(json4, function(idx, obj)
+						{
+							if (firstChil == true)
+							{
+								popupText += obj.name;
+								firstChil = false;
+							}
+							else
+							{
+								popupText += ", " + obj.name;
+							}
+						});
+						
+						popupText += '<br><button type="button" onclick="toggleFullDetails()">Close</button>';
+				
+						console.log(popupText);
+  			
+  						var popup = document.getElementById("fullDetails");
+						popup.innerHTML = popupText;
+  						popup.classList.toggle("show");
+					});
+				});
+  			});
+  		});
+	}
+	
+	function toggleFullDetails()
+	{
+		var popup = document.getElementById("fullDetails");
+  		popup.classList.toggle("show");
+	}
+	
+	function printConceptsOnLevel(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Concepts On Level ' + commInp + ':<br><br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printTranslations(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Translations for ' + commInp + ':<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			list += '<li>' + obj + '</li><br>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printTranslationsNoName(data)
+	{
+		console.log(data);
+		var list = '';
+		list += '<li>Translations:<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			list += '<li>' + obj + '</li><br>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printAncestorsNames(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Ancestors of ' + commInp + ':<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printAncestorsNamesNoName(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Ancestors:<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printChildren(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Children of ' + commInp + ':<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function printChildrenNoName(data)
+	{
+		console.log(data);
+		var list = '';
+		var commInp = document.getElementById("CommInp").value;
+		list += '<li>Children:<br></li>';
+		$.each(data, function(idx, obj) 
+		{
+			var name = obj.name;
+			list += '<li class="pointer"><text onclick="displayConceptDetailsOnClick(\'' + name + '\');">';
+			list += obj.name;
+			list += '</text></li>';
+		});
+		$( ".results" ).append("<ul>" + list + "</ul>");
+		//$("div").append("<ul>" + list + "</ul>");
+	}
+	
+	function error()
+	{
+		console.log("there was an error");
+	}
+	</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title> 
+	</title>
+</head>
+<body>
+	<p>Welcome To The Concept Search Tool</p>
+	
+	<form action="rest" id="form1">
+  		<label for="CommSel">Command Selection: </label>
+  		<select name="CommSel" id="CommSel"><br><br>
+  			<option value = "print_concepts_on_level">Print Concepts On Level</option>
+  			<option value = "print_all_concept_names">Print All Concept Names</option>
+  			<option value = "print_num_level_concepts">Print Number of Concepts On Level</option>
+  			<option value = "print_total_concepts">Print Total Number of Concepts</option>
+  			<option value = "print_translations">Print Translations For</option>
+  			<option value = "print_ancestors_list">Print Ancestors Details List For</option>
+  			<option value = "print_ancestors_names">Print Ancestors Names List For</option>
+  			<option value = "print_children">Print Children Names List For</option>
+  			<option value = "search_concepts">Search Concepts</option>
+  			<option value = "search_desc">Search Descriptions</option>
+  			<option value = "give_concept">Give Full Concept Details</option>
+  		</select><br><br>
+  		<label for="CommInp">Input for Command (Depends on Command Selected, Either a Word or a Number):</label>
+  		<input type="text" id="CommInp" name="CommInp"><br><br>
+  		<input type="submit" value="Submit">
+  		<button type="button" onclick="clearField();">Clear</button>
+	</form>
+	
+	<!--
+	<input type="search" id="Search" name="Search" placeholder="Enter Your Search">
+	<button type="button" onclick="displayFunction();">Submit</button>
+	
+	<button type="button" onclick="clearField();">Clear</button>
+	
+	<p id="Display"> Search Results Here:</p>
+	-->
+	
+	<script>
+	function displayFunction()
+	{
+  		document.getElementById("Display").innerHTML = document.getElementById("Search").value;
+	}
+	
+	function clearField()
+	{
+		document.getElementById("Search").value = "";
+	}
+	</script>
+</body>
+</html>
